@@ -17,6 +17,7 @@ def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     with get_connection() as conn:
+        # Raw timeline: one row per user check-in, classified by AI
         conn.execute("""
             CREATE TABLE IF NOT EXISTS activity_events (
                 id                      TEXT PRIMARY KEY,
@@ -33,4 +34,21 @@ def init_db() -> None:
                 created_at              TEXT NOT NULL
             )
         """)
+
+        # Meaningful work units: one row per sustained piece of work spanning
+        # one or more activity events (e.g. "study session", "build feature X")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS work_items (
+                id              TEXT PRIMARY KEY,
+                title           TEXT NOT NULL,
+                tag             TEXT NOT NULL,
+                status          TEXT NOT NULL DEFAULT 'in_progress',
+                started_at      TEXT NOT NULL,
+                finished_at     TEXT,
+                last_updated_at TEXT NOT NULL,
+                latest_update   TEXT,
+                source_event_id TEXT
+            )
+        """)
+
         conn.commit()

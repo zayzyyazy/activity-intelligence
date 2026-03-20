@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from app.models.activity_event import ActivityEvent, EventType, Category, ProductivityLabel
 from app.services.ai_classifier import classify_event_ai
+from app.services.work_item_service import create_work_item_from_event, RESULT_CREATED, RESULT_UPDATED, RESULT_DONE
 from app.db import init_db
 from app.storage.events import save_event, get_last_event
 
@@ -79,6 +80,20 @@ elif (
 
 save_event(event)
 print("Event saved to database.")
+
+result = create_work_item_from_event(event)
+if result is None:
+    print("No work item created.")
+else:
+    item, action = result
+    title = item.title if hasattr(item, "title") else item["title"]
+    tag   = item.tag.value if hasattr(item, "tag") else item["tag"]
+    if action == RESULT_CREATED:
+        print(f"Work item created: {title} [{tag}]")
+    elif action == RESULT_UPDATED:
+        print(f"Work item updated: {title} [{tag}]")
+    elif action == RESULT_DONE:
+        print(f"Work item marked done: {title} [{tag}]")
 
 print(f"\nCreated ActivityEvent:")
 print(f"  id                     : {event.id}")

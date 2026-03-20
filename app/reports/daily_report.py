@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from app.storage.work_items import get_all_open_work_items
+from app.services.work_item_reminders import get_stale_open_work_items
+
 DB_PATH = Path(__file__).parent.parent.parent / "data" / "activity.db"
 
 
@@ -59,11 +62,53 @@ def run_daily_checkup() -> None:
     print("\nTop activity:")
     print(f"  - {top_activity}")
 
+    open_items = get_all_open_work_items()
+    print("\nOpen Work Items")
+    print("---------------")
+    if not open_items:
+        print("No open work items.")
+    else:
+        for item in open_items:
+            print(f"- {item['title']} [{item['tag']}]")
+            print(f"  started:     {item['started_at']}")
+            print(f"  last update: {item['last_updated_at']}")
+            print(f"  latest note: {item['latest_update'] or 'none'}")
+
+    stale_items = get_stale_open_work_items(hours=24)
+    print("\nStale Work Items")
+    print("----------------")
+    if not stale_items:
+        print("No stale work items.")
+    else:
+        for item in stale_items:
+            print(f"- {item['title']} [{item['tag']}]")
+            print(f"  last update: {item['last_updated_at']}")
+            print(f"  latest note: {item['latest_update'] or 'none'}")
+
     api_key = os.environ.get("OPENAI_API_KEY")
     if api_key:
         from openai import OpenAI
 
         client = OpenAI(api_key=api_key)
+
+        if open_items:
+            open_items_text = "\n".join(
+                f"- {item['title']} [{item['tag']}], started {item['started_at']}, "
+                f"last update {item['last_updated_at']}, "
+                f"latest note: {item['latest_update'] or 'none'}"
+                for item in open_items
+            )
+        else:
+            open_items_text = "None"
+
+        if stale_items:
+            stale_items_text = "\n".join(
+                f"- {item['title']} [{item['tag']}], last update {item['last_updated_at']}, "
+                f"latest note: {item['latest_update'] or 'none'}"
+                for item in stale_items
+            )
+        else:
+            stale_items_text = "None"
 
         summary_data = f"""
 Total events: {total_events}
@@ -77,6 +122,12 @@ Productivity breakdown:
 {productivity_counts.to_dict()}
 
 Top activity: {top_activity}
+
+Open work items:
+{open_items_text}
+
+Stale work items (not updated in 24+ hours):
+{stale_items_text}
 """
 
         prompt = f"""
@@ -86,7 +137,9 @@ Provide a brief daily summary (3–5 sentences) covering:
 - how the day went overall
 - main focus areas
 - any notable patterns or distractions
-- one small suggestion for tomorrow
+- which open work items look worth continuing tomorrow, and which (if any) should be closed or deprioritised
+- for any stale work items, suggest whether to continue, close, or deprioritise them
+- one small actionable suggestion for tomorrow
 
 Data:
 {summary_data}
