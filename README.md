@@ -19,6 +19,7 @@ No timers. No categories to pre-define. Just log what you're doing in plain lang
 - Links each new event to the previous one to understand transitions
 - Stores everything locally in SQLite
 - Generates a weekly summary with time breakdowns and an AI review
+- Runs a daily checkup showing today's events, category and productivity breakdown, and an optional AI summary
 - Exports a clean CSV you can open in Numbers or Excel
 
 ---
@@ -38,7 +39,8 @@ This is the version I actually wanted: type one line, get useful data back.
 3. **The system links it** — each event records what came before it, so transitions are preserved
 4. **It's saved to SQLite** — all events live in a local `activity.db` file
 5. **Weekly summary** — run one command to get a time breakdown by category, plus an AI-written review of your week
-6. **CSV export** — export all events to a CSV file for analysis in Numbers or Excel
+6. **Daily checkup** — run anytime to see today's events, category breakdown, productivity split, and top activity. If an API key is set, it also generates a short AI summary of how the day went
+7. **CSV export** — export all events to a CSV file for analysis in Numbers or Excel
 
 ---
 
@@ -53,6 +55,9 @@ log "back to coding"
 # View your weekly summary
 week
 
+# Run a daily checkup
+checkup
+
 # Export to CSV
 exportlog
 
@@ -65,6 +70,7 @@ Running without aliases:
 ```bash
 python3 main.py "starting math revision"
 python3 -m app.analytics.weekly
+python3 -m app.reports.daily_report
 python3 scripts/export_csv.py
 ```
 
@@ -83,6 +89,9 @@ These are real outputs from the project.
 **CSV in Numbers**
 ![CSV in Numbers](assets/screenshots/03-csv-numbers.png)
 
+**Daily checkup**
+![Daily checkup](assets/screenshots/04-daily-summary.png)
+
 ---
 
 ## Project structure
@@ -98,7 +107,8 @@ activity-intelligence/
 │   │   ├── classifier.py        # Category classification logic
 │   │   └── ai_classifier.py     # OpenAI-powered classification
 │   ├── storage/events.py        # Read/write events to SQLite
-│   └── analytics/weekly.py      # Weekly summary and AI review
+│   ├── analytics/weekly.py      # Weekly summary and AI review
+│   └── reports/daily_report.py  # Daily checkup with category and productivity breakdown
 ├── scripts/
 │   └── export_csv.py            # Export events to CSV
 ├── assets/
@@ -138,7 +148,13 @@ python3 main.py "starting deep work session"
 python3 -m app.analytics.weekly
 ```
 
-**5. Export to CSV**
+**5. Run a daily checkup**
+
+```bash
+python3 -m app.reports.daily_report
+```
+
+**6. Export to CSV**
 
 ```bash
 python3 scripts/export_csv.py

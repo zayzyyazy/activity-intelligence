@@ -6,6 +6,9 @@ log "back to coding"
 # Weekly summary
 week
 
+# Daily checkup
+day
+
 # Export CSV
 exportlog
 
@@ -15,4 +18,5 @@ open data/activity_log.csv
 # Run without aliases
 python3 main.py "starting math revision"
 python3 -m app.analytics.weekly
+python3 -m app.reports.daily_report
 python3 scripts/export_csv.py
