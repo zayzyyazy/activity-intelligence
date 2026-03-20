@@ -21,6 +21,7 @@ No timers. No categories to pre-define. Just log what you're doing in plain lang
 - Generates a weekly summary with time breakdowns and an AI review
 - Runs a daily checkup showing today's events, category and productivity breakdown, and an optional AI summary
 - Exports a clean CSV you can open in Numbers or Excel
+- Tracks open work items separately — meaningful tasks like research, university work, writing, and personal projects. Distractions, breaks, and low-value events are not included
 
 ---
 
@@ -41,6 +42,7 @@ This is the version I actually wanted: type one line, get useful data back.
 5. **Weekly summary** — run one command to get a time breakdown by category, plus an AI-written review of your week
 6. **Daily checkup** — run anytime to see today's events, category breakdown, productivity split, and top activity. If an API key is set, it also generates a short AI summary of how the day went
 7. **CSV export** — export all events to a CSV file for analysis in Numbers or Excel
+8. **Open work items** — meaningful activities (study sessions, research, writing, personal projects) are tracked as open work items with a title, tag, status, and progress context. Distractions and breaks are excluded. You can view or export these separately to see what larger work is currently in progress
 
 ---
 
@@ -63,6 +65,9 @@ exportlog
 
 # Open in Numbers
 open data/activity_log.csv
+
+# Export open work items
+python3 scripts/export_open_work_items_csv.py
 ```
 
 Running without aliases:
@@ -91,6 +96,9 @@ These are real outputs from the project.
 
 **Daily checkup**
 ![Daily checkup](assets/screenshots/04-daily-summary.png)
+
+**Open work items**
+![Open Work Items](assets/screenshots/05-open-work-items.png)
 
 ---
 
@@ -158,6 +166,12 @@ python3 -m app.reports.daily_report
 
 ```bash
 python3 scripts/export_csv.py
+```
+
+**7. Export open work items**
+
+```bash
+python3 scripts/export_open_work_items_csv.py
 ```
 
 ---
