@@ -6,3 +6,4 @@ data/activity_log.csv
 __pycache__/
 *.pyc
 .venv/
+data/archive/
