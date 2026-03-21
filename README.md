@@ -49,6 +49,9 @@ This is the version I actually wanted: type one line, get useful data back.
 ## Example workflow
 
 ```bash
+# Start a new project — run intake first
+aiintake
+
 # Log what you're starting
 log "starting math revision"
 log "scrolling youtube"
@@ -182,6 +185,39 @@ python3 scripts/export_open_work_items_csv.py
 - **AI classifications can vary** — OpenAI's categorisation is good but not perfect. Ambiguous descriptions may be classified inconsistently.
 - **Local and CLI-first** — there's no web interface, no sync, no mobile app. Everything runs on your machine.
 - **You have to remember to log** — this doesn't run in the background. It only knows what you tell it.
+
+---
+
+## Project intake
+
+Before starting work on a new project (or when picking up an existing one), run:
+
+```bash
+aiintake
+```
+
+The tool reads any existing `project_context.md`, asks 4–5 focused questions in the terminal, then generates:
+
+- **Project understanding** — a short summary of what the project is and where it stands
+- **Open questions** — any gaps in what was described
+- **Suggested project_context.md** — ready to copy into the file
+- **Suggested current_step.md** — a next-step prompt for the AI build assistant
+
+Save the output to a file for reference:
+
+```bash
+aiintake > intake.md
+# or
+python3 scripts/project_intake.py --save   # saves to data/intake_TIMESTAMP.md
+```
+
+Shell alias to add to `~/.zshrc`:
+
+```bash
+alias aiintake='python3 /path/to/activity-intelligence/scripts/project_intake.py'
+```
+
+After intake, continue with the normal workflow (`aiprompt`, `aireviewclip`).
 
 ---
 

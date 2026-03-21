@@ -51,4 +51,21 @@ def init_db() -> None:
             )
         """)
 
+        # Passive timeline: one row per window-focus interval captured by ActivityWatch.
+        # UNIQUE constraint on (bucket_id, timestamp, app, title) allows INSERT OR IGNORE
+        # deduplication so the ingestion script is safe to re-run.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS passive_events (
+                id               TEXT PRIMARY KEY,
+                timestamp        TEXT NOT NULL,
+                duration_seconds REAL NOT NULL DEFAULT 0.0,
+                app              TEXT NOT NULL DEFAULT '',
+                title            TEXT NOT NULL DEFAULT '',
+                source           TEXT NOT NULL DEFAULT 'activitywatch',
+                bucket_id        TEXT NOT NULL DEFAULT '',
+                created_at       TEXT NOT NULL,
+                UNIQUE (bucket_id, timestamp, app, title)
+            )
+        """)
+
         conn.commit()

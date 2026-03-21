@@ -1,10 +1,10 @@
-import os
 import sqlite3
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
+from app.config import OPENAI_API_KEY
 from app.storage.work_items import get_all_open_work_items
 from app.services.work_item_reminders import get_stale_open_work_items
 
@@ -85,7 +85,72 @@ def run_daily_checkup() -> None:
             print(f"  last update: {item['last_updated_at']}")
             print(f"  latest note: {item['latest_update'] or 'none'}")
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    # Compute passive + alignment data early so it is available for the AI prompt
+    top_logged = (
+        df.groupby("activity_label")["duration_minutes"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(5)
+    )
+
+    today_str = today.isoformat()
+    _pc = sqlite3.connect(DB_PATH)
+    _pc.row_factory = sqlite3.Row
+    passive_rows = _pc.execute(
+        "SELECT app, duration_seconds FROM passive_events WHERE DATE(timestamp) = ?",
+        (today_str,),
+    ).fetchall()
+    _pc.close()
+
+    top_apps: list[tuple[str, float]] = []
+    if passive_rows:
+        _totals: dict[str, float] = {}
+        for _r in passive_rows:
+            _a = _r["app"] or "(unknown)"
+            _totals[_a] = _totals.get(_a, 0.0) + (_r["duration_seconds"] or 0.0)
+        top_apps = sorted(_totals.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    _CODING_APPS  = {"code", "terminal", "iterm", "iterm2", "xcode", "pycharm",
+                     "intellij", "cursor", "sublime", "vim", "neovim"}
+    _BROWSER_APPS = {"safari", "chrome", "firefox", "arc", "edge", "brave", "opera"}
+    _STUDY_APPS   = {"preview", "acrobat", "kindle", "books", "notion",
+                     "obsidian", "anki", "zotero"}
+
+    alignment_messages: list[str] = []
+    if top_apps:
+        _pa = {a.lower() for a, _ in top_apps}
+        _la = {lbl.lower() for lbl in top_logged.index}
+        _has_coding  = bool(_pa & _CODING_APPS)
+        _has_browser = bool(_pa & _BROWSER_APPS)
+        _has_study   = bool(_pa & _STUDY_APPS)
+
+        if any(kw in lbl for lbl in _la for kw in ("cod", "build", "programming", "dev", "script")):
+            if _has_coding:
+                alignment_messages.append(
+                    "Logged coding appears aligned with passive activity (Code, Terminal detected)."
+                )
+            elif _has_browser:
+                alignment_messages.append(
+                    "Logged coding may not fully align — browser was most active in passive data."
+                )
+
+        if any(kw in lbl for lbl in _la for kw in ("study", "revision", "lecture", "math", "university", "reading", "research")):
+            if _has_coding or _has_study:
+                alignment_messages.append(
+                    "Logged studying appears reasonably aligned with passive activity."
+                )
+            elif _has_browser:
+                alignment_messages.append(
+                    "Logged studying may not fully align — browser was dominant in passive data (YouTube, Safari)."
+                )
+
+        if any(kw in lbl for lbl in _la for kw in ("break", "rest", "youtube", "social")):
+            if _has_browser:
+                alignment_messages.append(
+                    "Logged break/distraction aligns with browser usage — acceptable."
+                )
+
+    api_key = OPENAI_API_KEY
     if api_key:
         from openai import OpenAI
 
@@ -110,6 +175,11 @@ def run_daily_checkup() -> None:
         else:
             stale_items_text = "None"
 
+        alignment_notes_text = (
+            "\n".join(f"- {m}" for m in alignment_messages)
+            if alignment_messages else "none"
+        )
+
         summary_data = f"""
 Total events: {total_events}
 Total time: {total_time:.1f} minutes
@@ -128,6 +198,9 @@ Open work items:
 
 Stale work items (not updated in 24+ hours):
 {stale_items_text}
+
+Alignment notes:
+{alignment_notes_text}
 """
 
         prompt = f"""
@@ -139,6 +212,7 @@ Provide a brief daily summary (3–5 sentences) covering:
 - any notable patterns or distractions
 - which open work items look worth continuing tomorrow, and which (if any) should be closed or deprioritised
 - for any stale work items, suggest whether to continue, close, or deprioritise them
+- if alignment notes suggest a mismatch between logged work and passive activity, name it clearly and suggest one concrete fix for tomorrow
 - one small actionable suggestion for tomorrow
 
 Data:
@@ -154,6 +228,34 @@ Data:
         print("\nAI Daily Summary")
         print("----------------")
         print(ai_summary)
+
+    # --- Passive vs Logged Activity ---
+    print("\nPassive vs Logged Activity")
+    print("--------------------------")
+
+    print("\nTop logged activities:")
+    for label, minutes in top_logged.items():
+        print(f"  - {label}: {minutes:.0f} min")
+
+    if not top_apps:
+        print("\nNo passive activity found for today.")
+    else:
+        print("\nTop passive apps:")
+        for app, seconds in top_apps:
+            print(f"  - {app}: {seconds / 60:.0f} min")
+
+    # --- Alignment Check ---
+    print("\nAlignment Check")
+    print("---------------")
+
+    if not top_apps:
+        print("Not enough passive data for alignment check.")
+    else:
+        to_print = alignment_messages if alignment_messages else [
+            "No clear alignment pattern detected from available data."
+        ]
+        for msg in to_print:
+            print(f"  {msg}")
 
 
 if __name__ == "__main__":

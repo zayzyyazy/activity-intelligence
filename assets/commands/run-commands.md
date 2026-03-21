@@ -1,3 +1,7 @@
+# Project intake (run before starting or resuming a project)
+aiintake
+python3 scripts/project_intake.py --save   # saves to data/intake_TIMESTAMP.md
+
 # Run app
 log "starting math revision"
 log "scrolling youtube"
