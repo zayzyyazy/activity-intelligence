@@ -7,6 +7,7 @@ import pandas as pd
 from app.config import OPENAI_API_KEY
 from app.storage.work_items import get_all_open_work_items
 from app.services.work_item_reminders import get_stale_open_work_items
+from app.storage.reminders import get_pending_reminders
 
 DB_PATH = Path(__file__).parent.parent.parent / "data" / "activity.db"
 
@@ -84,6 +85,17 @@ def run_daily_checkup() -> None:
             print(f"- {item['title']} [{item['tag']}]")
             print(f"  last update: {item['last_updated_at']}")
             print(f"  latest note: {item['latest_update'] or 'none'}")
+
+    pending_reminders = get_pending_reminders()
+    print("\nPending Reminders")
+    print("-----------------")
+    if not pending_reminders:
+        print("No pending reminders.")
+    else:
+        for r in pending_reminders:
+            print(f"- {r['title']}")
+            print(f"  due:  {r['due_at'] or 'none'}")
+            print(f"  note: {r['note'] or 'none'}")
 
     # Compute passive + alignment data early so it is available for the AI prompt
     top_logged = (
@@ -180,6 +192,14 @@ def run_daily_checkup() -> None:
             if alignment_messages else "none"
         )
 
+        if pending_reminders:
+            reminders_text = "\n".join(
+                f"- {r['title']} (due: {r['due_at'] or 'none'})"
+                for r in pending_reminders
+            )
+        else:
+            reminders_text = "None"
+
         summary_data = f"""
 Total events: {total_events}
 Total time: {total_time:.1f} minutes
@@ -198,6 +218,9 @@ Open work items:
 
 Stale work items (not updated in 24+ hours):
 {stale_items_text}
+
+Pending reminders:
+{reminders_text}
 
 Alignment notes:
 {alignment_notes_text}
@@ -228,6 +251,53 @@ Data:
         print("\nAI Daily Summary")
         print("----------------")
         print(ai_summary)
+
+    # --- Mobile Usage Today ---
+    print("\nMobile Usage Today")
+    print("------------------")
+
+    _mc = sqlite3.connect(DB_PATH)
+    _mc.row_factory = sqlite3.Row
+    mobile_rows = _mc.execute(
+        "SELECT app_name, bundle_id, duration_seconds, device_id, device_name "
+        "FROM mobile_screen_time_events WHERE DATE(timestamp) = ?",
+        (today_str,),
+    ).fetchall()
+    _mc.close()
+
+    if not mobile_rows:
+        print("No mobile Screen Time data found for today.")
+    else:
+        # Group by device_id; track device_name per device_id
+        _device_labels: dict[str, str] = {}
+        _device_totals: dict[str, float] = {}
+        _device_app_totals: dict[str, dict[str, float]] = {}
+        for _r in mobile_rows:
+            _did = _r["device_id"] or "(unknown device)"
+            _label = _r["device_name"] or _did
+            _device_labels[_did] = _label
+            _app = _r["app_name"] or _r["bundle_id"] or "(unknown)"
+            _secs = _r["duration_seconds"] or 0.0
+            _device_totals[_did] = _device_totals.get(_did, 0.0) + _secs
+            if _did not in _device_app_totals:
+                _device_app_totals[_did] = {}
+            _device_app_totals[_did][_app] = _device_app_totals[_did].get(_app, 0.0) + _secs
+
+        _single_device = len(_device_totals) == 1
+
+        for _did in sorted(_device_totals, key=lambda d: _device_totals[d], reverse=True):
+            _label = _device_labels[_did]
+            _total_min = _device_totals[_did] / 60
+            if _single_device:
+                print(f"Total usage ({_label}): {_total_min:.0f} min")
+            else:
+                print(f"\n{_label}")
+                print(f"  Total usage: {_total_min:.0f} min")
+            _prefix = "  " if _single_device else "    "
+            _apps_header = "Top apps:" if _single_device else "  Top apps:"
+            print(_apps_header)
+            for _app, _secs in sorted(_device_app_totals[_did].items(), key=lambda x: x[1], reverse=True)[:5]:
+                print(f"{_prefix}- {_app}: {_secs / 60:.0f} min")
 
     # --- Passive vs Logged Activity ---
     print("\nPassive vs Logged Activity")

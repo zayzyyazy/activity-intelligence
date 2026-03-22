@@ -1,6 +1,6 @@
 # activity-intelligence
 
-A local command-line tool for logging what you're working on, classifying it with AI, and getting a clear weekly breakdown of where your time actually went.
+A local command-line tool for logging what you're working on, classifying it with AI, and getting a clear daily and weekly breakdown of where your time actually went — with a full reminders system built in.
 
 ---
 
@@ -21,7 +21,11 @@ No timers. No categories to pre-define. Just log what you're doing in plain lang
 - Generates a weekly summary with time breakdowns and an AI review
 - Runs a daily checkup showing today's events, category and productivity breakdown, and an optional AI summary
 - Exports a clean CSV you can open in Numbers or Excel
-- Tracks open work items separately — meaningful tasks like research, university work, writing, and personal projects. Distractions, breaks, and low-value events are not included
+- Tracks open work items separately — meaningful tasks like research, university work, writing, and personal projects
+- **Reminders system** — add, list, and complete reminders from the terminal or via natural language
+- **Daily Command Center** — one command shows your tasks, stale work, passive app usage, completed projects, and ideas
+- **Passive activity tracking** — imports ActivityWatch data to show which apps you actually used and for how long
+- **iCloud inbox sync** — log activities and reminders from iPhone Shortcuts; synced automatically via iCloud
 
 ---
 
@@ -40,9 +44,232 @@ This is the version I actually wanted: type one line, get useful data back.
 3. **The system links it** — each event records what came before it, so transitions are preserved
 4. **It's saved to SQLite** — all events live in a local `activity.db` file
 5. **Weekly summary** — run one command to get a time breakdown by category, plus an AI-written review of your week
-6. **Daily checkup** — run anytime to see today's events, category breakdown, productivity split, and top activity. If an API key is set, it also generates a short AI summary of how the day went
+6. **Daily checkup** — run anytime to see today's events, category breakdown, productivity split, and top activity
 7. **CSV export** — export all events to a CSV file for analysis in Numbers or Excel
-8. **Open work items** — meaningful activities (study sessions, research, writing, personal projects) are tracked as open work items with a title, tag, status, and progress context. Distractions and breaks are excluded. You can view or export these separately to see what larger work is currently in progress
+8. **Open work items** — meaningful activities are tracked as open work items with a title, tag, status, and progress context
+9. **Reminders** — add reminders in plain English; OpenAI extracts the title, due date, and note automatically
+10. **Day view** — a single command gives you your full day: tasks, stale work, passive app usage, and a focus suggestion
+
+---
+
+## Reminders
+
+The reminders system lets you capture anything you need to do — from the terminal, from a natural-language sentence, or synced from your iPhone.
+
+### Add a reminder from natural language (new)
+
+```bash
+python3 scripts/add_reminder_from_text.py "make the final dock cleanup by 24 march, maybe after lunch"
+```
+
+Example output:
+
+```
+Saved: Make the final dock cleanup  due: 2026-03-24 23:59
+```
+
+OpenAI extracts a clean title, an optional due date, and an optional note. Filler like "maybe" and "after lunch" is stripped. If no date is mentioned, `due_at` is left empty.
+
+You can also run it interactively with no arguments:
+
+```bash
+python3 scripts/add_reminder_from_text.py
+Reminder: submit the university essay by friday
+Saved: Submit the university essay  due: 2026-03-27 23:59
+```
+
+### Add a reminder (structured)
+
+```bash
+python3 scripts/add_reminder.py "Review pull requests" --due "2026-03-25 10:00" --note "Focus on the auth module"
+```
+
+### List pending reminders
+
+```bash
+python3 scripts/list_reminders.py
+```
+
+Example output:
+
+```
+Pending Reminders
+-----------------
+- a3f1c2d4-...
+  title: Make the final dock cleanup
+  due:   2026-03-24 23:59:00
+  note:  none
+
+- b7e2a1f0-...
+  title: Submit the university essay
+  due:   2026-03-27 23:59:00
+  note:  none
+```
+
+### Mark a reminder done
+
+```bash
+# By title
+python3 scripts/done_reminder.py "Make the final dock cleanup"
+
+# By id
+python3 scripts/done_reminder.py a3f1c2d4-...
+```
+
+Example output:
+
+```
+Reminder marked done: Make the final dock cleanup
+```
+
+### Complete reminders from a summary (AI-powered)
+
+Paste or type a plain-text summary of what you completed. OpenAI matches it against your pending reminders and marks the relevant ones done.
+
+```bash
+python3 scripts/complete_reminders_from_summary.py "finished the dock cleanup and submitted the essay"
+```
+
+Example output:
+
+```
+Matched reminders:
+  - Make the final dock cleanup
+  - Submit the university essay
+
+Marked 2 reminders done.
+```
+
+### Sync reminders from iPhone (iCloud inbox)
+
+Your iPhone Shortcut appends reminder titles to an iCloud text file. Run this to import them:
+
+```bash
+python3 scripts/ingest_reminder_inbox.py
+```
+
+Example output:
+
+```
+Found 3 reminder(s) in inbox. Importing...
+
+  -> Call the dentist
+  + saved: e1a2b3c4-...
+  -> Buy groceries before Sunday
+  + saved: f5d6e7f8-...
+  -> Check gym schedule
+  + saved: 09ab1cd2-...
+
+3/3 reminder(s) imported.
+Inbox cleared.
+```
+
+---
+
+## Daily Command Center
+
+Run `day` (or `python3 scripts/day.py`) to see a full snapshot of your day:
+
+```
+TODAY — Sunday, March 22
+────────────────────────────────────────
+
+🔥 Focus Today
+  - Make the final dock cleanup  (due 2026-03-24)
+  - Submit the university essay  (due 2026-03-27)
+  - Review pull requests
+
+⚠️  Later / Don't forget
+  - Check gym schedule
+  - Call the dentist
+
+🧠 Resume
+  - Refactor auth middleware  [6h ago]
+
+🚀 Completed Projects
+
+  Software & Tools
+  - activity-intelligence CLI
+  - Mac shortcut automation
+
+  Research & Writing
+  - Weekly focus analysis
+
+💡 New Ideas
+
+  Software & Tools
+  - Passive screen time dashboard
+  - One-tap focus mode
+
+  Research & Writing
+  - Deep work scheduling patterns
+
+ Activity (today)
+  - Cursor: 142 min
+  - Safari: 38 min
+  - Slack: 14 min
+  - Notion: 9 min
+  - YouTube: 7 min
+
+→ Start with "Make the final dock cleanup".
+```
+
+Shell alias:
+
+```bash
+alias day='python3 /path/to/activity-intelligence/scripts/day.py'
+```
+
+---
+
+## Passive activity tracking
+
+Passive activity data is imported from ActivityWatch and stored in SQLite. View today's app usage:
+
+```bash
+python3 scripts/view_passive_today.py
+```
+
+Example output:
+
+```
+Passive Activity Today
+----------------------
+- Cursor: 142 min
+- Safari: 38 min
+- Slack: 14 min
+- Notion: 9 min
+- YouTube: 7 min
+
+[debug] total passive time : 210 min
+[debug] earliest timestamp : 2026-03-22 08:03:12
+[debug] latest timestamp   : 2026-03-22 21:47:51
+[debug] query window       : 2026-03-22 → 2026-03-23 (UTC)
+```
+
+---
+
+## iCloud inbox sync (activities)
+
+Log activities from your iPhone Shortcut into an iCloud text file. Import them on Mac with:
+
+```bash
+python3 scripts/ingest_activity_inbox.py
+```
+
+Example output:
+
+```
+Found 2 line(s) in inbox. Importing...
+
+  → starting deep work session
+  ✓ [start] deep work (building) → work item created: Deep work session [building]
+  → took a break
+  ✓ [switch] break (break)
+
+2/2 activities imported.
+Inbox cleared.
+```
 
 ---
 
@@ -52,10 +279,16 @@ This is the version I actually wanted: type one line, get useful data back.
 # Start a new project — run intake first
 aiintake
 
-# Log what you're starting
+# Log what you're doing
 log "starting math revision"
 log "scrolling youtube"
 log "back to coding"
+
+# Add a reminder from natural language
+python3 scripts/add_reminder_from_text.py "submit the assignment by friday night"
+
+# See your full day at a glance
+day
 
 # View your weekly summary
 week
@@ -65,12 +298,6 @@ checkup
 
 # Export to CSV
 exportlog
-
-# Open in Numbers
-open data/activity_log.csv
-
-# Export open work items
-python3 scripts/export_open_work_items_csv.py
 ```
 
 Running without aliases:
@@ -80,6 +307,7 @@ python3 main.py "starting math revision"
 python3 -m app.analytics.weekly
 python3 -m app.reports.daily_report
 python3 scripts/export_csv.py
+python3 scripts/day.py
 ```
 
 ---
@@ -109,24 +337,47 @@ These are real outputs from the project.
 
 ```
 activity-intelligence/
-├── main.py                      # Entry point — log a new activity
+├── main.py                               # Entry point — log a new activity
 ├── app/
-│   ├── config.py                # Environment and settings
-│   ├── db.py                    # Database connection
-│   ├── models/activity_event.py # Event data model
+│   ├── config.py                         # Environment and settings
+│   ├── db.py                             # Database connection
+│   ├── models/
+│   │   ├── activity_event.py             # Event data model
+│   │   ├── reminder_item.py              # Reminder data model
+│   │   └── mobile_screen_time_event.py   # Screen time event model
 │   ├── services/
-│   │   ├── classifier.py        # Category classification logic
-│   │   └── ai_classifier.py     # OpenAI-powered classification
-│   ├── storage/events.py        # Read/write events to SQLite
-│   ├── analytics/weekly.py      # Weekly summary and AI review
-│   └── reports/daily_report.py  # Daily checkup with category and productivity breakdown
+│   │   ├── classifier.py                 # Category classification logic
+│   │   └── ai_classifier.py             # OpenAI-powered classification
+│   ├── storage/
+│   │   ├── events.py                     # Read/write events to SQLite
+│   │   ├── reminders.py                  # Read/write reminders to SQLite
+│   │   └── mobile_screen_time.py         # Screen time storage
+│   ├── analytics/weekly.py               # Weekly summary and AI review
+│   └── reports/daily_report.py           # Daily checkup
 ├── scripts/
-│   └── export_csv.py            # Export events to CSV
+│   ├── add_reminder_from_text.py         # Add reminder from natural language (OpenAI)
+│   ├── add_reminder.py                   # Add reminder with structured flags
+│   ├── list_reminders.py                 # List all pending reminders
+│   ├── done_reminder.py                  # Mark a reminder done by title or id
+│   ├── complete_reminders_from_summary.py # AI-powered bulk completion
+│   ├── ingest_reminder_inbox.py          # Import reminders from iCloud inbox
+│   ├── ingest_activity_inbox.py          # Import activity logs from iCloud inbox
+│   ├── ingest_screen_time.py             # Import screen time data
+│   ├── view_passive_today.py             # View today's passive app usage
+│   ├── day.py                            # Daily Command Center
+│   ├── export_csv.py                     # Export events to CSV
+│   ├── export_open_work_items_csv.py     # Export open work items to CSV
+│   ├── watch_activity_inbox.py           # Watch iCloud activity inbox (file watcher)
+│   ├── watch_reminder_inbox.py           # Watch iCloud reminder inbox (file watcher)
+│   ├── watch_reminder_inbox_poll.py      # Watch iCloud reminder inbox (polling)
+│   ├── watch_activitywatch_import.py     # Watch and import ActivityWatch data
+│   ├── start_background_services.sh      # Start all background watchers
+│   └── project_intake.py                # Project intake assistant
 ├── assets/
-│   ├── commands/run-commands.md # Quick command reference
-│   └── screenshots/             # Real output screenshots
+│   ├── commands/run-commands.md          # Quick command reference
+│   └── screenshots/                      # Real output screenshots
 └── data/
-    └── activity.db              # Local SQLite database (gitignored)
+    └── activity.db                       # Local SQLite database (gitignored)
 ```
 
 ---
@@ -153,28 +404,34 @@ OPENAI_API_KEY=your-key-here
 python3 main.py "starting deep work session"
 ```
 
-**4. View weekly summary**
+**4. Add a reminder from natural language**
+
+```bash
+python3 scripts/add_reminder_from_text.py "finish the report by thursday"
+```
+
+**5. View your day**
+
+```bash
+python3 scripts/day.py
+```
+
+**6. View weekly summary**
 
 ```bash
 python3 -m app.analytics.weekly
 ```
 
-**5. Run a daily checkup**
+**7. Run a daily checkup**
 
 ```bash
 python3 -m app.reports.daily_report
 ```
 
-**6. Export to CSV**
+**8. Export to CSV**
 
 ```bash
 python3 scripts/export_csv.py
-```
-
-**7. Export open work items**
-
-```bash
-python3 scripts/export_open_work_items_csv.py
 ```
 
 ---
@@ -184,7 +441,7 @@ python3 scripts/export_open_work_items_csv.py
 - **Event-based, not time-tracking** — the system records when you log something, not how long you actually spent on it. Duration is inferred from the gap between events.
 - **AI classifications can vary** — OpenAI's categorisation is good but not perfect. Ambiguous descriptions may be classified inconsistently.
 - **Local and CLI-first** — there's no web interface, no sync, no mobile app. Everything runs on your machine.
-- **You have to remember to log** — this doesn't run in the background. It only knows what you tell it.
+- **You have to remember to log** — this doesn't run in the background. It only knows what you tell it. Passive tracking via ActivityWatch partially addresses this.
 
 ---
 
@@ -217,13 +474,11 @@ Shell alias to add to `~/.zshrc`:
 alias aiintake='python3 /path/to/activity-intelligence/scripts/project_intake.py'
 ```
 
-After intake, continue with the normal workflow (`aiprompt`, `aireviewclip`).
-
 ---
 
 ## Future improvements
 
 - Better session reconstruction — smarter handling of gaps, idle time, and end-of-day events
 - Stronger weekly summaries — trend comparisons, best/worst focus days
-- Shortcut automation — faster logging via keyboard shortcuts or menu bar
+- Mac Shortcut integration — single-input reminder flow using `add_reminder_from_text.py`
 - Deeper analytics — streaks, category drift over time, time-of-day patterns

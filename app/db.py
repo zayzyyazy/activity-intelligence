@@ -68,4 +68,37 @@ def init_db() -> None:
             )
         """)
 
+        # Manual reminders set by the user, shown in the daily report
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS reminder_items (
+                id           TEXT PRIMARY KEY,
+                title        TEXT NOT NULL,
+                note         TEXT,
+                due_at       TEXT,
+                status       TEXT NOT NULL DEFAULT 'pending',
+                created_at   TEXT NOT NULL,
+                completed_at TEXT
+            )
+        """)
+
+        # Mobile Screen Time: one row per app-usage interval imported from
+        # knowledgeC.db on the Mac (synced from iPhone/iPad via iCloud).
+        # UNIQUE constraint on (timestamp, bundle_id, device_id) makes the
+        # ingestion script safe to re-run without creating duplicate rows.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_screen_time_events (
+                id               TEXT PRIMARY KEY,
+                timestamp        TEXT NOT NULL,
+                end_timestamp    TEXT,
+                duration_seconds REAL NOT NULL DEFAULT 0.0,
+                bundle_id        TEXT NOT NULL DEFAULT '',
+                app_name         TEXT NOT NULL DEFAULT '',
+                device_id        TEXT NOT NULL DEFAULT '',
+                device_name      TEXT NOT NULL DEFAULT '',
+                source           TEXT NOT NULL DEFAULT 'screentime_knowledgeC',
+                created_at       TEXT NOT NULL,
+                UNIQUE (timestamp, bundle_id, device_id)
+            )
+        """)
+
         conn.commit()
