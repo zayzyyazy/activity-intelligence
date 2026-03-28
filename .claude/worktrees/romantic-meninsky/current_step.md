@@ -1,0 +1,1 @@
+Understand the current state of this project and identify the single best next implementation step without rewriting everything.

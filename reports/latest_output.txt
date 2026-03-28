@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/sessions/fervent-amazing-cannon/mnt/activity-intelligence/main.py", line 6, in <module>
+    from app.services.ai_classifier import classify_event_ai
+  File "/sessions/fervent-amazing-cannon/mnt/activity-intelligence/app/services/ai_classifier.py", line 2, in <module>
+    from openai import OpenAI
+ModuleNotFoundError: No module named 'openai'
